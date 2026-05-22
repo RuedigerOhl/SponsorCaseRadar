@@ -122,14 +122,13 @@ export default function UploadForm() {
         >
           {imagePreview ? (
             <div className="relative">
-              <div className="relative h-56 sm:h-72 rounded-2xl overflow-hidden">
-                <Image
+              <div className="relative rounded-2xl overflow-hidden bg-zinc-900 flex items-center justify-center" style={{ minHeight: '180px', maxHeight: '400px' }}>
+                <img
                   src={imagePreview}
                   alt="Vorschau"
-                  fill
-                  className="object-cover"
+                  className="w-full h-auto max-h-96 object-contain rounded-2xl"
+                  style={{ display: 'block' }}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
               </div>
               <button
                 type="button"

@@ -33,25 +33,68 @@ export interface ClaudeAnalysisResult {
   sources: string[];
 }
 
-const SYSTEM_PROMPT = `Du bist ein erfahrener Sponsoring-Stratege mit über 20 Jahren Erfahrung. Du analysierst Sponsoring-Kampagnen präzise und tiefgründig nach dem S20 Benchmark-Raster. Deine Bewertungen enthalten immer konkrete Begründungen und sind auf Basis öffentlich verfügbarer Fakten belegt. Du antwortest IMMER als valides JSON ohne Markdown oder Codeblöcke.`;
+// Step 1: Fast image identification — no web search, just read what's visible
+async function identifyFromImage(
+  imageBase64: string,
+  imageMimeType: string
+): Promise<string> {
+  const response = await anthropic.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 400,
+    messages: [
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'image',
+            source: {
+              type: 'base64',
+              media_type: imageMimeType as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp',
+              data: imageBase64,
+            },
+          },
+          {
+            type: 'text',
+            text: `Analysiere dieses Bild und nenne mir präzise:
+1. Alle sichtbaren Markenlogos und Firmennamen
+2. Alle lesbaren Texte, Slogans oder Schriftzüge
+3. Den Kontext: Was ist das für ein Sponsoring? (Trikot, Plakat, Bande, Event, Produkt etc.)
+4. Den Sport/Verband/Verein/Event falls erkennbar
 
-function buildPrompt(description?: string, hasImage?: boolean): string {
-  return `Analysiere den folgenden Sponsoring-Case und bewerte ihn nach dem S20 Benchmark-Raster.
+Antworte knapp und faktisch, keine Einleitung.`,
+          },
+        ],
+      },
+    ],
+  });
 
-${hasImage ? 'Erkenne anhand des Bildes, um welchen Sponsoring-Case es sich handelt.' : ''}
-${description ? `Case-Eingabe: "${description}"` : ''}
+  const textBlock = response.content.find((b) => b.type === 'text');
+  return textBlock ? (textBlock as Anthropic.TextBlock).text : '';
+}
 
-SCHRITT 1: Suche im Internet nach detaillierten Informationen zu diesem Sponsoring-Case (Kampagnendetails, Laufzeit, Budget falls bekannt, Aktivierungen, Mediadaten, Ergebnisse, Presseberichte).
+// Step 2: Deep analysis with targeted web search based on identified case
+async function analyzeWithSearch(
+  caseIdentification: string,
+  description?: string
+): Promise<ClaudeAnalysisResult> {
+  const webSearchTool: Anthropic.WebSearchTool20250305 = {
+    type: 'web_search_20250305',
+    name: 'web_search',
+  };
 
-SCHRITT 2: Erstelle auf Basis der gefundenen Informationen folgendes JSON:
+  const searchPrompt = `Du bist ein erfahrener Sponsoring-Stratege. Analysiere folgenden Sponsoring-Case nach dem S20 Benchmark-Raster.
 
+${caseIdentification ? `IDENTIFIZIERTER CASE (aus Bildanalyse):\n${caseIdentification}\n` : ''}
+${description ? `ZUSÄTZLICHE BESCHREIBUNG:\n${description}\n` : ''}
+
+Suche jetzt gezielt nach Informationen zu diesem Case: Kampagnendetails, Laufzeit, Aktivierungen, Mediadaten, Ergebnisse, Awards.
+
+Erstelle dann exakt dieses JSON (kein Markdown, keine Codeblöcke):
 {
-  "title": "Prägnanter Case-Titel (z.B. 'Edeka × DFB — Die Nationalelf Kampagne')",
-  "brand": "Name der Marke/des Sponsors",
-  "partner": "Name des Rechtehalters (Verein, Verband, Event, Künstler etc.)",
-
-  "summary": "MANAGEMENT SUMMARY — mindestens 4 ausführliche Absätze auf Deutsch:\\n\\nAbsatz 1 — Das Sponsoring: Wer sponsert wen, seit wann, in welcher Kategorie (Hauptsponsor, Presenting Sponsor etc.), was ist der vertragliche Rahmen soweit bekannt.\\n\\nAbsatz 2 — Die Aktivierung: Welche konkreten Maßnahmen wurden umgesetzt? TV-Spots, Social Media, Events, Promotions, Produktintegrationen, POS-Maßnahmen — so detailliert wie möglich.\\n\\nAbsatz 3 — Reichweite & Wirkung: Welche Mediadaten, Zuschauerzahlen, Social-Media-Reichweiten, PR-Wert oder andere Metriken sind bekannt? Welche Auszeichnungen oder Benchmarks wurden erreicht?\\n\\nAbsatz 4 — Einordnung: Warum ist dieser Case bemerkenswert? Was macht ihn zu einem Best Case oder was sind die Schwächen?",
-
+  "title": "Marke × Partner — Kampagnenname",
+  "brand": "Sponsoring-Marke",
+  "partner": "Rechtehalter",
+  "summary": "Mindestens 4 Absätze:\\n\\nAbsatz 1 — Das Sponsoring: Wer sponsert wen, seit wann, Kategorie, vertraglicher Rahmen.\\n\\nAbsatz 2 — Die Aktivierung: Konkrete Maßnahmen (TV, Social, Events, Promotions, POS, Produktintegration).\\n\\nAbsatz 3 — Reichweite & Wirkung: Mediadaten, Zuschauerzahlen, Social-Reichweite, PR-Wert, Awards.\\n\\nAbsatz 4 — Einordnung: Warum ist dieser Case bemerkenswert oder wo hat er Schwächen?",
   "ratings": {
     "kreative_idee": 4,
     "strategischer_fit": 5,
@@ -62,28 +105,56 @@ SCHRITT 2: Erstelle auf Basis der gefundenen Informationen folgendes JSON:
     "impact": 4,
     "nachhaltigkeit": 5
   },
-
   "rating_reasons": {
-    "kreative_idee": "Konkrete Begründung warum diese Note: Was ist originell, was ist Standard? Nenne spezifische Beispiele aus der Kampagne.",
-    "strategischer_fit": "Konkrete Begründung: Wie gut passt die Marke zum Rechtehalter? Gibt es inhaltliche Überschneidungen, oder wirkt es aufgesetzt?",
-    "visibility": "Konkrete Begründung: Wo ist die Marke sichtbar? Wie dominant? Alleinstellung oder im Clutter?",
-    "multichannel": "Konkrete Begründung: Welche Kanäle werden bespielt? Wie gut sind sie verzahnt? Was fehlt?",
-    "talk_of_town": "Konkrete Begründung: Was hat für Gesprächsstoff gesorgt? Wurde es organisch aufgegriffen? Gibt es PR-Wert?",
-    "aktivierungsmechanik": "Konkrete Begründung: Welche Mechanik gibt es? Wie stark werden Fans/Konsumenten aktiviert? Einstiegshürde?",
-    "impact": "Konkrete Begründung: Welche messbaren Ergebnisse gibt es? KPIs, Sales-Effekte, Markenmetriken?",
-    "nachhaltigkeit": "Konkrete Begründung: Ist das eine einmalige Aktion oder eine langfristige Plattform? Gibt es Anschlusspotenzial?"
+    "kreative_idee": "2-3 konkrete Sätze warum diese Note — mit spezifischen Beispielen aus der Kampagne.",
+    "strategischer_fit": "2-3 konkrete Sätze — passt die Marke zum Partner oder wirkt es austauschbar?",
+    "visibility": "2-3 konkrete Sätze — wo und wie stark ist die Marke sichtbar?",
+    "multichannel": "2-3 konkrete Sätze — welche Kanäle werden bespielt, wie gut verzahnt?",
+    "talk_of_town": "2-3 konkrete Sätze — was hat für Gesprächsstoff gesorgt?",
+    "aktivierungsmechanik": "2-3 konkrete Sätze — welche Mechanik, wie stark werden Fans aktiviert?",
+    "impact": "2-3 konkrete Sätze — welche messbaren Ergebnisse, KPIs, Sales-Effekte?",
+    "nachhaltigkeit": "2-3 konkrete Sätze — einmalige Aktion oder langfristige Plattform?"
   },
-
-  "strategic_insight": "2-3 Absätze: Was können andere Sponsoren von diesem Case lernen? Welche Mechaniken sind übertragbar? Was würdest du als nächsten Schritt empfehlen?",
-
-  "sources": ["url1", "url2", "url3"]
+  "strategic_insight": "2-3 Absätze: Was können andere Sponsoren lernen? Welche Mechaniken sind übertragbar?",
+  "sources": ["url1", "url2"]
 }
 
-WICHTIG:
-- summary muss mindestens 300 Wörter haben
-- Jede rating_reason muss mindestens 2-3 konkrete Sätze haben
-- Bewertungen 1-5, wobei 3 = Branchendurchschnitt
-- Wenn du keine gesicherten Infos findest, sage das explizit in der Summary statt zu raten`;
+Wichtig: Bewertung 3 = Branchendurchschnitt. summary mind. 250 Wörter.`;
+
+  const messages: Anthropic.MessageParam[] = [
+    { role: 'user', content: searchPrompt },
+  ];
+
+  let response = await anthropic.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 6000,
+    system: 'Du antwortest IMMER als valides JSON ohne Markdown oder Codeblöcke.',
+    tools: [webSearchTool],
+    messages,
+  });
+
+  let iterations = 0;
+  while (response.stop_reason === 'tool_use' && iterations < 6) {
+    iterations++;
+    messages.push({ role: 'assistant', content: response.content });
+    response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 6000,
+      system: 'Du antwortest IMMER als valides JSON ohne Markdown oder Codeblöcke.',
+      tools: [webSearchTool],
+      messages,
+    });
+  }
+
+  const textBlock = response.content.find((b) => b.type === 'text');
+  if (!textBlock) throw new Error('Keine Antwort von Claude erhalten.');
+
+  const raw = (textBlock as Anthropic.TextBlock).text
+    .replace(/```json\n?/g, '')
+    .replace(/```\n?/g, '')
+    .trim();
+
+  return JSON.parse(raw) as ClaudeAnalysisResult;
 }
 
 export async function analyzeSponsoringCase(
@@ -91,74 +162,20 @@ export async function analyzeSponsoringCase(
   imageBase64?: string,
   imageMimeType?: string
 ): Promise<ClaudeAnalysisResult> {
-  const webSearchTool: Anthropic.WebSearchTool20250305 = {
-    type: 'web_search_20250305',
-    name: 'web_search',
-  };
-
-  const userContent: Anthropic.MessageParam['content'] = [];
-
+  // Step 1: If image provided, identify it first (fast, ~2s)
+  let caseIdentification = '';
   if (imageBase64 && imageMimeType) {
-    userContent.push({
-      type: 'image',
-      source: {
-        type: 'base64',
-        media_type: imageMimeType as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp',
-        data: imageBase64,
-      },
-    });
+    caseIdentification = await identifyFromImage(imageBase64, imageMimeType);
   }
 
-  userContent.push({ type: 'text', text: buildPrompt(description, !!imageBase64) });
-
-  const messages: Anthropic.MessageParam[] = [{ role: 'user', content: userContent }];
-
-  let response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 8000,
-    system: SYSTEM_PROMPT,
-    tools: [webSearchTool],
-    messages,
-  });
-
-  // Agentic loop — for web_search_20250305 Anthropic executes searches server-side.
-  // We just append each assistant turn and call again until end_turn.
-  let iterations = 0;
-  while (response.stop_reason === 'tool_use' && iterations < 8) {
-    iterations++;
-    messages.push({ role: 'assistant', content: response.content });
-
-    // For server-side tools like web_search, send an empty user continuation
-    // so Anthropic can inject the search results automatically.
-    response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 8000,
-      system: SYSTEM_PROMPT,
-      tools: [webSearchTool],
-      messages,
-    });
-  }
-
-  // Extract final JSON text
-  let resultText = '';
-  for (const block of response.content) {
-    if (block.type === 'text') {
-      resultText = block.text;
-      break;
-    }
-  }
-
-  if (!resultText) throw new Error('Keine Textantwort von Claude erhalten.');
-
-  const cleanedText = resultText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-  const result = JSON.parse(cleanedText) as ClaudeAnalysisResult;
+  // Step 2: Deep analysis with web search using the identified case
+  const result = await analyzeWithSearch(caseIdentification, description);
 
   // Clamp ratings 1–5
   const ratingKeys = [
     'kreative_idee', 'strategischer_fit', 'visibility', 'multichannel',
     'talk_of_town', 'aktivierungsmechanik', 'impact', 'nachhaltigkeit',
   ] as const;
-
   for (const key of ratingKeys) {
     result.ratings[key] = Math.min(5, Math.max(1, Math.round(result.ratings[key] || 3)));
   }
