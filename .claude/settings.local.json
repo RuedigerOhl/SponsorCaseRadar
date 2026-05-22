@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Users/rudigerohl/Library/Application Support/Claude/local-agent-mode-sessions/skills-plugin/3679cb65-5f75-49ac-bc72-3fc62fc56c11/2d4ea1c2-e780-495e-810c-3a95d7eaa43a/skills/xlsx/**)",
+      "Bash(python3 -c ' *)",
+      "Bash(pip3 install *)",
+      "Bash(mkdir -p /Users/rudigerohl/AI/SponsorBestCaseViewing/supabase /Users/rudigerohl/AI/SponsorBestCaseViewing/app/case/\\\\[id\\\\] /Users/rudigerohl/AI/SponsorBestCaseViewing/app/archive /Users/rudigerohl/AI/SponsorBestCaseViewing/app/api/analyze /Users/rudigerohl/AI/SponsorBestCaseViewing/app/api/cases /Users/rudigerohl/AI/SponsorBestCaseViewing/app/api/export/pdf /Users/rudigerohl/AI/SponsorBestCaseViewing/components /Users/rudigerohl/AI/SponsorBestCaseViewing/lib && echo \"Directories created\")",
+      "Bash(npm install *)",
+      "Bash(NEXT_PUBLIC_SUPABASE_URL=https://dummy.supabase.co NEXT_PUBLIC_SUPABASE_ANON_KEY=dummy SUPABASE_SERVICE_ROLE_KEY=dummy ANTHROPIC_API_KEY=dummy npx next build)",
+      "Bash(npx tsc *)",
+      "Bash(git init *)",
+      "Bash(git add *)",
+      "Bash(git commit -m 'Initial commit: SponsorCaseRadar MVP *)"
+    ]
+  }
+}
