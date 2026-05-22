@@ -82,44 +82,63 @@ async function analyzeWithSearch(
     name: 'web_search',
   };
 
-  const searchPrompt = `Du bist ein erfahrener Sponsoring-Stratege. Analysiere folgenden Sponsoring-Case nach dem S20 Benchmark-Raster.
+  const searchPrompt = `Du bist ein erfahrener Sponsoring-Stratege. Analysiere diesen konkreten Sponsoring-Case individuell und unabhängig.
 
-${caseIdentification ? `IDENTIFIZIERTER CASE (aus Bildanalyse):\n${caseIdentification}\n` : ''}
-${description ? `ZUSÄTZLICHE BESCHREIBUNG:\n${description}\n` : ''}
+${caseIdentification ? `IDENTIFIZIERTER CASE (Bildanalyse-Ergebnis):\n${caseIdentification}\n` : ''}
+${description ? `BESCHREIBUNG:\n${description}\n` : ''}
 
-Suche jetzt gezielt nach Informationen zu diesem Case: Kampagnendetails, Laufzeit, Aktivierungen, Mediadaten, Ergebnisse, Awards.
+SCHRITT 1: Suche im Internet nach diesem spezifischen Case. Finde heraus: Kampagnenname, Laufzeit, Budget (falls bekannt), konkrete Aktivierungen, Mediadaten, Kampagnenergebnisse, Auszeichnungen.
 
-Erstelle dann exakt dieses JSON (kein Markdown, keine Codeblöcke):
+SCHRITT 2: Bewerte den Case anhand der 8 S20-Kriterien. Die Bewertungen MÜSSEN den tatsächlichen Qualitäten DIESES Cases entsprechen — nicht einem Durchschnitt, nicht einem Template. Jedes Kriterium wird unabhängig bewertet:
+
+BEWERTUNGSSKALA (für jedes Kriterium):
+- 1 = Weit unter Branchendurchschnitt / kaum vorhanden
+- 2 = Unter Durchschnitt / schwach ausgeprägt
+- 3 = Branchendurchschnitt / solide aber unremarkable
+- 4 = Überdurchschnittlich / klar erkennbare Stärke
+- 5 = Branchenführend / Best-in-Class Beispiel
+
+KRITERIEN:
+- kreative_idee: Wie originell ist die Grundidee? Bricht sie Erwartungen? Hat sie Cultural-Moment-Potenzial?
+- strategischer_fit: Wie glaubwürdig passt die Marke zum Rechtehalter? Wäre es austauschbar?
+- visibility: Wie dominant und wahrnehmbar ist die Markenpräsenz? Alleinstellung oder im Clutter?
+- multichannel: Wie gut sind Paid/Owned/Earned/On-Ground verzahnt? Isolierte Aktion oder integriert?
+- talk_of_town: Wie viel organischen Gesprächswert erzeugt es? Wird es über die Marketingbubble hinaus diskutiert?
+- aktivierungsmechanik: Wie stark werden Menschen zu Teilnehmern statt Zuschauern? Niedrige Einstiegshürde?
+- impact: Wie klar messbar sind Engagement oder Business-Effekte? Gibt es belegbare KPIs?
+- nachhaltigkeit: Ist es eine langfristige Plattform oder ein einmaliger Moment? Ausbaubar?
+
+WICHTIG: Vergib die Noten nach ehrlicher Analyse. Ein Standard-Trikot-Sponsor bekommt nicht automatisch 4-5 Punkte. Ein innovativer Case kann durchaus 5 Punkte in einzelnen Kriterien verdienen, aber 2 in anderen. Die Noten sollen voneinander abweichen wenn die Realität das rechtfertigt.
+
+Antworte mit diesem JSON (kein Markdown, keine Codeblöcke, echte Noten statt Platzhalter):
 {
-  "title": "Marke × Partner — Kampagnenname",
-  "brand": "Sponsoring-Marke",
-  "partner": "Rechtehalter",
-  "summary": "Mindestens 4 Absätze:\\n\\nAbsatz 1 — Das Sponsoring: Wer sponsert wen, seit wann, Kategorie, vertraglicher Rahmen.\\n\\nAbsatz 2 — Die Aktivierung: Konkrete Maßnahmen (TV, Social, Events, Promotions, POS, Produktintegration).\\n\\nAbsatz 3 — Reichweite & Wirkung: Mediadaten, Zuschauerzahlen, Social-Reichweite, PR-Wert, Awards.\\n\\nAbsatz 4 — Einordnung: Warum ist dieser Case bemerkenswert oder wo hat er Schwächen?",
+  "title": "Marke × Partner — prägnanter Titel",
+  "brand": "Name der Sponsoring-Marke",
+  "partner": "Name des Rechtehalters",
+  "summary": "4 Absätze auf Deutsch:\\n\\nAbsatz 1 — Das Sponsoring: Wer sponsert wen, seit wann, welche Kategorie, vertraglicher Rahmen.\\n\\nAbsatz 2 — Die Aktivierung: Konkrete Maßnahmen (TV-Spots, Social Media, Events, Promotions, POS, Produktintegration) — so spezifisch wie möglich.\\n\\nAbsatz 3 — Reichweite & Wirkung: Mediadaten, Zuschauerzahlen, Social-Reichweite, PR-Wert, Awards, belegbare Ergebnisse.\\n\\nAbsatz 4 — Einordnung: Was macht diesen Case bemerkenswert oder wo hat er Schwächen?",
   "ratings": {
-    "kreative_idee": 4,
-    "strategischer_fit": 5,
-    "visibility": 4,
-    "multichannel": 3,
-    "talk_of_town": 4,
-    "aktivierungsmechanik": 3,
-    "impact": 4,
-    "nachhaltigkeit": 5
+    "kreative_idee": ECHTE_NOTE_1_BIS_5,
+    "strategischer_fit": ECHTE_NOTE_1_BIS_5,
+    "visibility": ECHTE_NOTE_1_BIS_5,
+    "multichannel": ECHTE_NOTE_1_BIS_5,
+    "talk_of_town": ECHTE_NOTE_1_BIS_5,
+    "aktivierungsmechanik": ECHTE_NOTE_1_BIS_5,
+    "impact": ECHTE_NOTE_1_BIS_5,
+    "nachhaltigkeit": ECHTE_NOTE_1_BIS_5
   },
   "rating_reasons": {
-    "kreative_idee": "2-3 konkrete Sätze warum diese Note — mit spezifischen Beispielen aus der Kampagne.",
-    "strategischer_fit": "2-3 konkrete Sätze — passt die Marke zum Partner oder wirkt es austauschbar?",
-    "visibility": "2-3 konkrete Sätze — wo und wie stark ist die Marke sichtbar?",
-    "multichannel": "2-3 konkrete Sätze — welche Kanäle werden bespielt, wie gut verzahnt?",
-    "talk_of_town": "2-3 konkrete Sätze — was hat für Gesprächsstoff gesorgt?",
-    "aktivierungsmechanik": "2-3 konkrete Sätze — welche Mechanik, wie stark werden Fans aktiviert?",
-    "impact": "2-3 konkrete Sätze — welche messbaren Ergebnisse, KPIs, Sales-Effekte?",
-    "nachhaltigkeit": "2-3 konkrete Sätze — einmalige Aktion oder langfristige Plattform?"
+    "kreative_idee": "Konkrete Begründung für DIESE Note mit Beispielen aus DIESEM Case.",
+    "strategischer_fit": "Konkrete Begründung für DIESE Note — was spricht für/gegen den Fit?",
+    "visibility": "Konkrete Begründung — wo genau ist die Marke sichtbar, wie dominant?",
+    "multichannel": "Konkrete Begründung — welche Kanäle, wie gut verzahnt, was fehlt?",
+    "talk_of_town": "Konkrete Begründung — was hat konkret Gesprächswert erzeugt oder eben nicht?",
+    "aktivierungsmechanik": "Konkrete Begründung — welche Mechanik existiert, wie stark die Participation?",
+    "impact": "Konkrete Begründung — welche Ergebnisse sind bekannt oder nicht messbar?",
+    "nachhaltigkeit": "Konkrete Begründung — einmalig oder Plattform, ausbaubar?"
   },
-  "strategic_insight": "2-3 Absätze: Was können andere Sponsoren lernen? Welche Mechaniken sind übertragbar?",
-  "sources": ["url1", "url2"]
-}
-
-Wichtig: Bewertung 3 = Branchendurchschnitt. summary mind. 250 Wörter.`;
+  "strategic_insight": "2-3 Absätze auf Deutsch: Was lernen andere Sponsoren von diesem Case? Welche Mechaniken sind übertragbar? Was wäre die nächste logische Stufe?",
+  "sources": ["konkrete_url_1", "konkrete_url_2"]
+}`;
 
   const messages: Anthropic.MessageParam[] = [
     { role: 'user', content: searchPrompt },
