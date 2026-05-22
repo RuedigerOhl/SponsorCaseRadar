@@ -60,7 +60,7 @@ export default function ArchivePage() {
           </Link>
           <Link
             href="/"
-            className="bg-accent hover:bg-blue-500 text-white text-sm font-medium px-4 py-2 rounded-xl transition-colors"
+            className="bg-accent hover:bg-red-500 text-white text-sm font-medium px-4 py-2 rounded-xl transition-colors"
           >
             + Case einreichen
           </Link>
@@ -203,7 +203,7 @@ export default function ArchivePage() {
             </p>
             <Link
               href="/"
-              className="bg-accent hover:bg-blue-500 text-white text-sm font-medium px-5 py-2.5 rounded-xl transition-colors inline-block"
+              className="bg-accent hover:bg-red-500 text-white text-sm font-medium px-5 py-2.5 rounded-xl transition-colors inline-block"
             >
               Case einreichen →
             </Link>

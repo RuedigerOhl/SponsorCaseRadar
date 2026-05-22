@@ -27,7 +27,9 @@
       "Bash(vercel --prod --yes)",
       "Bash(vercel env *)",
       "Bash(git commit -m 'Fix: lazy Supabase client init to avoid build-time env var access *)",
-      "Bash(git commit -m 'Improve: detailed summary + rating reasons per dimension *)"
+      "Bash(git commit -m 'Improve: detailed summary + rating reasons per dimension *)",
+      "WebFetch(domain:www.s20.de)",
+      "Bash(git commit -m 'Design: replace blue with S20 red \\(#EE4044\\) throughout *)"
     ]
   }
 }

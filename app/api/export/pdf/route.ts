@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
     .brand-logo {
       font-size: 20px;
       font-weight: 700;
-      color: #2563eb;
+      color: #EE4044;
       letter-spacing: -0.5px;
     }
 
@@ -143,7 +143,7 @@ export async function GET(request: NextRequest) {
     .rating-bar-fill {
       height: 100%;
       border-radius: 4px;
-      background: #2563eb;
+      background: #EE4044;
     }
 
     .rating-score {
@@ -162,7 +162,7 @@ export async function GET(request: NextRequest) {
       background: #f9fafb;
       padding: 20px;
       border-radius: 8px;
-      border-left: 3px solid #2563eb;
+      border-left: 3px solid #EE4044;
     }
 
     .sources-list {

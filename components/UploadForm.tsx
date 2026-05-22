@@ -239,7 +239,7 @@ export default function UploadForm() {
       <button
         type="submit"
         disabled={loading || (!image && !description.trim())}
-        className="w-full bg-accent hover:bg-blue-500 disabled:bg-zinc-800 disabled:text-zinc-600 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 flex items-center justify-center gap-3 text-base disabled:cursor-not-allowed"
+        className="w-full bg-accent hover:bg-red-500 disabled:bg-zinc-800 disabled:text-zinc-600 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 flex items-center justify-center gap-3 text-base disabled:cursor-not-allowed"
       >
         {loading ? (
           <>

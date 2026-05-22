@@ -60,7 +60,7 @@ export default function CaseCard({ caseData }: CaseCardProps) {
 
         {/* Content */}
         <div className="p-4">
-          <h3 className="font-semibold text-white text-base leading-tight mb-1 line-clamp-2 group-hover:text-blue-400 transition-colors">
+          <h3 className="font-semibold text-white text-base leading-tight mb-1 line-clamp-2 group-hover:text-accent transition-colors">
             {caseData.title}
           </h3>
           {(caseData.brand || caseData.partner) && (
