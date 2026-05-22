@@ -22,7 +22,9 @@
       "mcp__Claude_Preview__preview_start",
       "Bash(vercel --version)",
       "Bash(git commit -m 'Fix: SponsorCaseRadar name in all headers *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(git commit -m 'Fix: force-dynamic on case page to prevent build-time Supabase call *)",
+      "Bash(vercel --prod --yes)"
     ]
   }
 }
