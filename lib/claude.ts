@@ -33,6 +33,23 @@ export interface ClaudeAnalysisResult {
   sources: string[];
 }
 
+function extractJson(text: string): ClaudeAnalysisResult {
+  // Strip markdown fences
+  let cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+
+  // Find the outermost JSON object
+  const start = cleaned.indexOf('{');
+  const end = cleaned.lastIndexOf('}');
+  if (start === -1 || end === -1) throw new Error('Kein JSON im Claude-Output gefunden.');
+  cleaned = cleaned.slice(start, end + 1);
+
+  // Replace any leftover text placeholders in rating values that would break JSON
+  cleaned = cleaned.replace(/"(kreative_idee|strategischer_fit|visibility|multichannel|talk_of_town|aktivierungsmechanik|impact|nachhaltigkeit)":\s*[A-Z_]+/g,
+    (match) => match.replace(/:\s*[A-Z_]+/, ': 3'));
+
+  return JSON.parse(cleaned) as ClaudeAnalysisResult;
+}
+
 // Step 1: Fast image identification — no web search, just read what's visible
 async function identifyFromImage(
   imageBase64: string,
@@ -110,35 +127,40 @@ KRITERIEN:
 
 WICHTIG: Vergib die Noten nach ehrlicher Analyse. Ein Standard-Trikot-Sponsor bekommt nicht automatisch 4-5 Punkte. Ein innovativer Case kann durchaus 5 Punkte in einzelnen Kriterien verdienen, aber 2 in anderen. Die Noten sollen voneinander abweichen wenn die Realität das rechtfertigt.
 
-Antworte mit diesem JSON (kein Markdown, keine Codeblöcke, echte Noten statt Platzhalter):
+Antworte NUR mit validem JSON, ohne Markdown, ohne Codeblöcke, ohne Text davor oder danach.
+Alle Noten in "ratings" sind ganze Zahlen zwischen 1 und 5 — keine Strings, keine Platzhalter.
+Vergib die Noten auf Basis deiner Recherche. Sie dürfen und sollen voneinander abweichen.
+
 {
   "title": "Marke × Partner — prägnanter Titel",
   "brand": "Name der Sponsoring-Marke",
   "partner": "Name des Rechtehalters",
-  "summary": "4 Absätze auf Deutsch:\\n\\nAbsatz 1 — Das Sponsoring: Wer sponsert wen, seit wann, welche Kategorie, vertraglicher Rahmen.\\n\\nAbsatz 2 — Die Aktivierung: Konkrete Maßnahmen (TV-Spots, Social Media, Events, Promotions, POS, Produktintegration) — so spezifisch wie möglich.\\n\\nAbsatz 3 — Reichweite & Wirkung: Mediadaten, Zuschauerzahlen, Social-Reichweite, PR-Wert, Awards, belegbare Ergebnisse.\\n\\nAbsatz 4 — Einordnung: Was macht diesen Case bemerkenswert oder wo hat er Schwächen?",
+  "summary": "4 Absätze auf Deutsch:\\n\\nAbsatz 1 — Das Sponsoring: Wer sponsert wen, seit wann, welche Kategorie, vertraglicher Rahmen.\\n\\nAbsatz 2 — Die Aktivierung: Konkrete Maßnahmen (TV-Spots, Social Media, Events, Promotions, POS, Produktintegration).\\n\\nAbsatz 3 — Reichweite & Wirkung: Mediadaten, Zuschauerzahlen, Social-Reichweite, PR-Wert, Awards, belegbare Ergebnisse.\\n\\nAbsatz 4 — Einordnung: Was macht diesen Case bemerkenswert oder wo hat er Schwächen?",
   "ratings": {
-    "kreative_idee": ECHTE_NOTE_1_BIS_5,
-    "strategischer_fit": ECHTE_NOTE_1_BIS_5,
-    "visibility": ECHTE_NOTE_1_BIS_5,
-    "multichannel": ECHTE_NOTE_1_BIS_5,
-    "talk_of_town": ECHTE_NOTE_1_BIS_5,
-    "aktivierungsmechanik": ECHTE_NOTE_1_BIS_5,
-    "impact": ECHTE_NOTE_1_BIS_5,
-    "nachhaltigkeit": ECHTE_NOTE_1_BIS_5
+    "kreative_idee": 3,
+    "strategischer_fit": 3,
+    "visibility": 3,
+    "multichannel": 3,
+    "talk_of_town": 3,
+    "aktivierungsmechanik": 3,
+    "impact": 3,
+    "nachhaltigkeit": 3
   },
   "rating_reasons": {
-    "kreative_idee": "Konkrete Begründung für DIESE Note mit Beispielen aus DIESEM Case.",
-    "strategischer_fit": "Konkrete Begründung für DIESE Note — was spricht für/gegen den Fit?",
-    "visibility": "Konkrete Begründung — wo genau ist die Marke sichtbar, wie dominant?",
-    "multichannel": "Konkrete Begründung — welche Kanäle, wie gut verzahnt, was fehlt?",
-    "talk_of_town": "Konkrete Begründung — was hat konkret Gesprächswert erzeugt oder eben nicht?",
-    "aktivierungsmechanik": "Konkrete Begründung — welche Mechanik existiert, wie stark die Participation?",
-    "impact": "Konkrete Begründung — welche Ergebnisse sind bekannt oder nicht messbar?",
-    "nachhaltigkeit": "Konkrete Begründung — einmalig oder Plattform, ausbaubar?"
+    "kreative_idee": "Begründung warum genau diese Note — mit konkreten Beispielen aus diesem Case.",
+    "strategischer_fit": "Begründung — was spricht für oder gegen den Markenfit?",
+    "visibility": "Begründung — wie dominant und sichtbar ist die Marke konkret?",
+    "multichannel": "Begründung — welche Kanäle, wie gut verzahnt, was fehlt?",
+    "talk_of_town": "Begründung — was erzeugt Gesprächswert oder fehlt komplett?",
+    "aktivierungsmechanik": "Begründung — welche Mechanik, wie stark ist die Participation?",
+    "impact": "Begründung — welche messbaren Ergebnisse sind bekannt?",
+    "nachhaltigkeit": "Begründung — einmalige Aktion oder langfristige Plattform?"
   },
-  "strategic_insight": "2-3 Absätze auf Deutsch: Was lernen andere Sponsoren von diesem Case? Welche Mechaniken sind übertragbar? Was wäre die nächste logische Stufe?",
-  "sources": ["konkrete_url_1", "konkrete_url_2"]
-}`;
+  "strategic_insight": "2-3 Absätze: Was lernen andere Sponsoren? Welche Mechaniken sind übertragbar?",
+  "sources": ["url1", "url2"]
+}
+
+NOCHMALS: Die 3er in ratings sind NUR Startwerte im Template. Du MUSST sie durch deine echte Bewertung ersetzen (1-5). Ein Wert von 3 bedeutet Branchendurchschnitt — vergib 1-2 wenn etwas schwach ist, 4-5 wenn etwas überdurchschnittlich ist.`;
 
   const messages: Anthropic.MessageParam[] = [
     { role: 'user', content: searchPrompt },
@@ -168,12 +190,7 @@ Antworte mit diesem JSON (kein Markdown, keine Codeblöcke, echte Noten statt Pl
   const textBlock = response.content.find((b) => b.type === 'text');
   if (!textBlock) throw new Error('Keine Antwort von Claude erhalten.');
 
-  const raw = (textBlock as Anthropic.TextBlock).text
-    .replace(/```json\n?/g, '')
-    .replace(/```\n?/g, '')
-    .trim();
-
-  return JSON.parse(raw) as ClaudeAnalysisResult;
+  return extractJson((textBlock as Anthropic.TextBlock).text);
 }
 
 export async function analyzeSponsoringCase(
