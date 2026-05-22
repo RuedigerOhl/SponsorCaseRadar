@@ -8,7 +8,7 @@ export default function HomePage() {
       <header className="px-4 pt-8 pb-2 text-center">
         <div className="flex items-center justify-center gap-2 mb-1">
           <span className="text-2xl font-extrabold tracking-tight text-white">
-            Spot<span className="text-accent">Case</span>
+            Sponsor<span className="text-accent">CaseRadar</span>
           </span>
           <span className="bg-accent/20 text-accent text-[10px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wide border border-accent/30">
             S20

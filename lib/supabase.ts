@@ -6,10 +6,9 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 // Public client (for client-side use)
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Server-side admin client (for API routes)
+// Server-side client (uses anon key — RLS policies allow public insert/select)
 export function createServiceClient() {
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-  return createClient(supabaseUrl, serviceRoleKey, {
+  return createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,

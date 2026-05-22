@@ -56,7 +56,7 @@ export default function ArchivePage() {
       <header className="sticky top-0 z-10 bg-background/90 backdrop-blur-sm border-b border-zinc-900 px-4 py-3">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <Link href="/" className="text-lg font-extrabold tracking-tight">
-            Spot<span className="text-accent">Case</span>
+            Sponsor<span className="text-accent">CaseRadar</span>
           </Link>
           <Link
             href="/"
