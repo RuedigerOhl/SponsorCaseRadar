@@ -24,7 +24,9 @@
       "Bash(git commit -m 'Fix: SponsorCaseRadar name in all headers *)",
       "Bash(git push *)",
       "Bash(git commit -m 'Fix: force-dynamic on case page to prevent build-time Supabase call *)",
-      "Bash(vercel --prod --yes)"
+      "Bash(vercel --prod --yes)",
+      "Bash(vercel env *)",
+      "Bash(git commit -m 'Fix: lazy Supabase client init to avoid build-time env var access *)"
     ]
   }
 }
