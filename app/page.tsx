@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import UploadForm from '@/components/UploadForm';
 
 export default function HomePage() {
@@ -6,12 +7,10 @@ export default function HomePage() {
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
       <header className="px-4 pt-8 pb-2 text-center">
-        <div className="flex items-center justify-center gap-2 mb-1">
+        <div className="flex items-center justify-center gap-3 mb-1">
+          <Image src="/s20-logo.svg" alt="S20" width={36} height={37} className="flex-shrink-0" />
           <span className="text-2xl font-extrabold tracking-tight text-white">
             Sponsor<span className="text-accent">CaseRadar</span>
-          </span>
-          <span className="bg-accent/20 text-accent text-[10px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wide border border-accent/30">
-            S20
           </span>
         </div>
         <p className="text-sm text-zinc-500 font-medium">

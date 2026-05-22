@@ -29,7 +29,9 @@
       "Bash(git commit -m 'Fix: lazy Supabase client init to avoid build-time env var access *)",
       "Bash(git commit -m 'Improve: detailed summary + rating reasons per dimension *)",
       "WebFetch(domain:www.s20.de)",
-      "Bash(git commit -m 'Design: replace blue with S20 red \\(#EE4044\\) throughout *)"
+      "Bash(git commit -m 'Design: replace blue with S20 red \\(#EE4044\\) throughout *)",
+      "Bash(curl -s \"https://www.s20.de/wp-content/themes/s20/images/logo-new.svg\" -o /Users/rudigerohl/AI/SponsorBestCaseViewing/public/s20-logo.svg)",
+      "Bash(git commit -m 'Design: integrate S20 logo in all headers *)"
     ]
   }
 }

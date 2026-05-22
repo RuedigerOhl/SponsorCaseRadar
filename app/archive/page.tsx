@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Case } from '@/lib/supabase';
 import CaseCard from '@/components/CaseCard';
 
@@ -55,8 +56,11 @@ export default function ArchivePage() {
       {/* Header */}
       <header className="sticky top-0 z-10 bg-background/90 backdrop-blur-sm border-b border-zinc-900 px-4 py-3">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <Link href="/" className="text-lg font-extrabold tracking-tight">
-            Sponsor<span className="text-accent">CaseRadar</span>
+          <Link href="/" className="flex items-center gap-2">
+            <Image src="/s20-logo.svg" alt="S20" width={28} height={29} className="flex-shrink-0" />
+            <span className="text-lg font-extrabold tracking-tight">
+              Sponsor<span className="text-accent">CaseRadar</span>
+            </span>
           </Link>
           <Link
             href="/"
