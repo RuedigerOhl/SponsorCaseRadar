@@ -133,14 +133,20 @@ export default async function CasePage({ params }: PageProps) {
           <h2 className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-5">
             S20 Bewertung · 8 Dimensionen
           </h2>
-          <div className="space-y-4">
+          <div className="space-y-6">
             {RATING_DIMENSIONS.map((dim) => (
-              <RatingBar
-                key={dim.key}
-                label={dim.label}
-                description={dim.description}
-                score={ratings[dim.key] || 0}
-              />
+              <div key={dim.key}>
+                <RatingBar
+                  label={dim.label}
+                  description={dim.description}
+                  score={ratings[dim.key] || 0}
+                />
+                {caseData.rating_reasons?.[dim.key as keyof typeof caseData.rating_reasons] && (
+                  <p className="mt-2 text-xs text-zinc-500 leading-relaxed pl-1 border-l border-zinc-800">
+                    {caseData.rating_reasons[dim.key as keyof typeof caseData.rating_reasons]}
+                  </p>
+                )}
+              </div>
             ))}
           </div>
         </div>

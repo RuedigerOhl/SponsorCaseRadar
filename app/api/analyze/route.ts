@@ -81,6 +81,7 @@ export async function POST(request: NextRequest) {
         score_total: scoreTotal,
         score_label: scoreLabel,
         ratings: analysis.ratings,
+        rating_reasons: analysis.rating_reasons,
         strategic_insight: analysis.strategic_insight,
         sources: analysis.sources,
       })
