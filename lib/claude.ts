@@ -33,164 +33,190 @@ export interface ClaudeAnalysisResult {
   sources: string[];
 }
 
-function extractJson(text: string): ClaudeAnalysisResult {
-  // Strip markdown fences
-  let cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+// Tool schema — Claude MUST fill this in, guarantees valid structure
+const SAVE_ANALYSIS_TOOL: Anthropic.Tool = {
+  name: 'save_case_analysis',
+  description: 'Speichert die vollständige S20 Benchmark-Analyse eines Sponsoring-Cases.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      title: { type: 'string', description: 'Kurztitel: Marke × Partner — Kampagne' },
+      brand: { type: 'string', description: 'Name der Sponsoring-Marke' },
+      partner: { type: 'string', description: 'Name des Rechtehalters (Verein, Verband, Event)' },
+      summary: {
+        type: 'string',
+        description: 'Management Summary auf Deutsch, mind. 4 Absätze: (1) Das Sponsoring — wer/wen/seit wann/Kategorie, (2) Die Aktivierung — konkrete Maßnahmen TV/Social/Events/POS, (3) Reichweite & Wirkung — Mediadaten/KPIs/Awards, (4) Einordnung — Stärken und Schwächen',
+      },
+      rating_kreative_idee: { type: 'integer', minimum: 1, maximum: 5, description: 'Wie originell ist die Grundidee? 1=Standard, 5=Cultural Moment' },
+      rating_strategischer_fit: { type: 'integer', minimum: 1, maximum: 5, description: 'Wie glaubwürdig passt die Marke zum Rechtehalter? 1=austauschbar, 5=perfekt' },
+      rating_visibility: { type: 'integer', minimum: 1, maximum: 5, description: 'Wie dominant ist die Markenpräsenz? 1=kaum sichtbar, 5=Dominant' },
+      rating_multichannel: { type: 'integer', minimum: 1, maximum: 5, description: 'Wie gut verzahnt sind Paid/Owned/Earned/On-Ground? 1=isoliert, 5=vollintegriert' },
+      rating_talk_of_town: { type: 'integer', minimum: 1, maximum: 5, description: 'Wie viel organischen Gesprächswert erzeugt es? 1=keine Resonanz, 5=viraler Effekt' },
+      rating_aktivierungsmechanik: { type: 'integer', minimum: 1, maximum: 5, description: 'Wie stark werden Menschen zu Teilnehmern? 1=nur Zuschauer, 5=echte Participation' },
+      rating_impact: { type: 'integer', minimum: 1, maximum: 5, description: 'Wie klar messbar sind Business-Effekte? 1=unklar, 5=klar belegbare KPIs' },
+      rating_nachhaltigkeit: { type: 'integer', minimum: 1, maximum: 5, description: 'Langfristige Plattform oder einmaliger Moment? 1=One-Hit-Wonder, 5=Plattform' },
+      reason_kreative_idee: { type: 'string', description: '2-3 konkrete Sätze warum genau diese Note, mit Beispielen aus dem Case' },
+      reason_strategischer_fit: { type: 'string', description: '2-3 konkrete Sätze — was spricht für/gegen den Markenfit?' },
+      reason_visibility: { type: 'string', description: '2-3 konkrete Sätze — wie dominant und wo sichtbar?' },
+      reason_multichannel: { type: 'string', description: '2-3 konkrete Sätze — welche Kanäle, wie gut verzahnt, was fehlt?' },
+      reason_talk_of_town: { type: 'string', description: '2-3 konkrete Sätze — was hat Gesprächswert erzeugt oder gefehlt?' },
+      reason_aktivierungsmechanik: { type: 'string', description: '2-3 konkrete Sätze — welche Mechanik, wie stark die Participation?' },
+      reason_impact: { type: 'string', description: '2-3 konkrete Sätze — welche messbaren Ergebnisse oder warum unklar?' },
+      reason_nachhaltigkeit: { type: 'string', description: '2-3 konkrete Sätze — einmalig oder ausbaubare Plattform?' },
+      strategic_insight: { type: 'string', description: '2-3 Absätze: Was lernen andere Sponsoren? Welche Mechaniken sind übertragbar?' },
+      sources: { type: 'array', items: { type: 'string' }, description: 'URLs der genutzten Quellen' },
+    },
+    required: [
+      'title', 'brand', 'partner', 'summary',
+      'rating_kreative_idee', 'rating_strategischer_fit', 'rating_visibility', 'rating_multichannel',
+      'rating_talk_of_town', 'rating_aktivierungsmechanik', 'rating_impact', 'rating_nachhaltigkeit',
+      'reason_kreative_idee', 'reason_strategischer_fit', 'reason_visibility', 'reason_multichannel',
+      'reason_talk_of_town', 'reason_aktivierungsmechanik', 'reason_impact', 'reason_nachhaltigkeit',
+      'strategic_insight', 'sources',
+    ],
+  },
+};
 
-  // Find the outermost JSON object
-  const start = cleaned.indexOf('{');
-  const end = cleaned.lastIndexOf('}');
-  if (start === -1 || end === -1) throw new Error('Kein JSON im Claude-Output gefunden.');
-  cleaned = cleaned.slice(start, end + 1);
-
-  // Replace any leftover text placeholders in rating values that would break JSON
-  cleaned = cleaned.replace(/"(kreative_idee|strategischer_fit|visibility|multichannel|talk_of_town|aktivierungsmechanik|impact|nachhaltigkeit)":\s*[A-Z_]+/g,
-    (match) => match.replace(/:\s*[A-Z_]+/, ': 3'));
-
-  return JSON.parse(cleaned) as ClaudeAnalysisResult;
-}
-
-// Step 1: Fast image identification — no web search, just read what's visible
-async function identifyFromImage(
-  imageBase64: string,
-  imageMimeType: string
-): Promise<string> {
+// Step 1: Fast image identification
+async function identifyFromImage(imageBase64: string, imageMimeType: string): Promise<string> {
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-6',
     max_tokens: 400,
-    messages: [
-      {
-        role: 'user',
-        content: [
-          {
-            type: 'image',
-            source: {
-              type: 'base64',
-              media_type: imageMimeType as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp',
-              data: imageBase64,
-            },
+    messages: [{
+      role: 'user',
+      content: [
+        {
+          type: 'image',
+          source: {
+            type: 'base64',
+            media_type: imageMimeType as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp',
+            data: imageBase64,
           },
-          {
-            type: 'text',
-            text: `Analysiere dieses Bild und nenne mir präzise:
+        },
+        {
+          type: 'text',
+          text: `Analysiere dieses Bild und nenne mir präzise:
 1. Alle sichtbaren Markenlogos und Firmennamen
-2. Alle lesbaren Texte, Slogans oder Schriftzüge
+2. Alle lesbaren Texte, Slogans, Schriftzüge
 3. Den Kontext: Was ist das für ein Sponsoring? (Trikot, Plakat, Bande, Event, Produkt etc.)
-4. Den Sport/Verband/Verein/Event falls erkennbar
+4. Sport/Verband/Verein/Event falls erkennbar
 
-Antworte knapp und faktisch, keine Einleitung.`,
-          },
-        ],
-      },
-    ],
+Antworte knapp und faktisch.`,
+        },
+      ],
+    }],
   });
-
   const textBlock = response.content.find((b) => b.type === 'text');
   return textBlock ? (textBlock as Anthropic.TextBlock).text : '';
 }
 
-// Step 2: Deep analysis with targeted web search based on identified case
-async function analyzeWithSearch(
-  caseIdentification: string,
-  description?: string
-): Promise<ClaudeAnalysisResult> {
+// Step 2a: Research with web search
+async function researchCase(caseIdentification: string, description?: string): Promise<string> {
   const webSearchTool: Anthropic.WebSearchTool20250305 = {
     type: 'web_search_20250305',
     name: 'web_search',
   };
 
-  const searchPrompt = `Du bist ein erfahrener Sponsoring-Stratege. Analysiere diesen konkreten Sponsoring-Case individuell und unabhängig.
+  const researchPrompt = `Du bist ein Sponsoring-Experte. Recherchiere diesen Case gründlich.
 
-${caseIdentification ? `IDENTIFIZIERTER CASE (Bildanalyse-Ergebnis):\n${caseIdentification}\n` : ''}
-${description ? `BESCHREIBUNG:\n${description}\n` : ''}
+${caseIdentification ? `CASE (aus Bildanalyse): ${caseIdentification}\n` : ''}
+${description ? `BESCHREIBUNG: ${description}\n` : ''}
 
-SCHRITT 1: Suche im Internet nach diesem spezifischen Case. Finde heraus: Kampagnenname, Laufzeit, Budget (falls bekannt), konkrete Aktivierungen, Mediadaten, Kampagnenergebnisse, Auszeichnungen.
+Suche nach: Kampagnendetails, Laufzeit, Budget, konkrete Aktivierungen, Mediadaten, Ergebnisse, Awards, Presseberichte. Sammle möglichst viele Fakten über dieses Sponsoring.`;
 
-SCHRITT 2: Bewerte den Case anhand der 8 S20-Kriterien. Die Bewertungen MÜSSEN den tatsächlichen Qualitäten DIESES Cases entsprechen — nicht einem Durchschnitt, nicht einem Template. Jedes Kriterium wird unabhängig bewertet:
-
-BEWERTUNGSSKALA (für jedes Kriterium):
-- 1 = Weit unter Branchendurchschnitt / kaum vorhanden
-- 2 = Unter Durchschnitt / schwach ausgeprägt
-- 3 = Branchendurchschnitt / solide aber unremarkable
-- 4 = Überdurchschnittlich / klar erkennbare Stärke
-- 5 = Branchenführend / Best-in-Class Beispiel
-
-KRITERIEN:
-- kreative_idee: Wie originell ist die Grundidee? Bricht sie Erwartungen? Hat sie Cultural-Moment-Potenzial?
-- strategischer_fit: Wie glaubwürdig passt die Marke zum Rechtehalter? Wäre es austauschbar?
-- visibility: Wie dominant und wahrnehmbar ist die Markenpräsenz? Alleinstellung oder im Clutter?
-- multichannel: Wie gut sind Paid/Owned/Earned/On-Ground verzahnt? Isolierte Aktion oder integriert?
-- talk_of_town: Wie viel organischen Gesprächswert erzeugt es? Wird es über die Marketingbubble hinaus diskutiert?
-- aktivierungsmechanik: Wie stark werden Menschen zu Teilnehmern statt Zuschauern? Niedrige Einstiegshürde?
-- impact: Wie klar messbar sind Engagement oder Business-Effekte? Gibt es belegbare KPIs?
-- nachhaltigkeit: Ist es eine langfristige Plattform oder ein einmaliger Moment? Ausbaubar?
-
-WICHTIG: Vergib die Noten nach ehrlicher Analyse. Ein Standard-Trikot-Sponsor bekommt nicht automatisch 4-5 Punkte. Ein innovativer Case kann durchaus 5 Punkte in einzelnen Kriterien verdienen, aber 2 in anderen. Die Noten sollen voneinander abweichen wenn die Realität das rechtfertigt.
-
-Antworte NUR mit validem JSON, ohne Markdown, ohne Codeblöcke, ohne Text davor oder danach.
-Alle Noten in "ratings" sind ganze Zahlen zwischen 1 und 5 — keine Strings, keine Platzhalter.
-Vergib die Noten auf Basis deiner Recherche. Sie dürfen und sollen voneinander abweichen.
-
-{
-  "title": "Marke × Partner — prägnanter Titel",
-  "brand": "Name der Sponsoring-Marke",
-  "partner": "Name des Rechtehalters",
-  "summary": "4 Absätze auf Deutsch:\\n\\nAbsatz 1 — Das Sponsoring: Wer sponsert wen, seit wann, welche Kategorie, vertraglicher Rahmen.\\n\\nAbsatz 2 — Die Aktivierung: Konkrete Maßnahmen (TV-Spots, Social Media, Events, Promotions, POS, Produktintegration).\\n\\nAbsatz 3 — Reichweite & Wirkung: Mediadaten, Zuschauerzahlen, Social-Reichweite, PR-Wert, Awards, belegbare Ergebnisse.\\n\\nAbsatz 4 — Einordnung: Was macht diesen Case bemerkenswert oder wo hat er Schwächen?",
-  "ratings": {
-    "kreative_idee": 3,
-    "strategischer_fit": 3,
-    "visibility": 3,
-    "multichannel": 3,
-    "talk_of_town": 3,
-    "aktivierungsmechanik": 3,
-    "impact": 3,
-    "nachhaltigkeit": 3
-  },
-  "rating_reasons": {
-    "kreative_idee": "Begründung warum genau diese Note — mit konkreten Beispielen aus diesem Case.",
-    "strategischer_fit": "Begründung — was spricht für oder gegen den Markenfit?",
-    "visibility": "Begründung — wie dominant und sichtbar ist die Marke konkret?",
-    "multichannel": "Begründung — welche Kanäle, wie gut verzahnt, was fehlt?",
-    "talk_of_town": "Begründung — was erzeugt Gesprächswert oder fehlt komplett?",
-    "aktivierungsmechanik": "Begründung — welche Mechanik, wie stark ist die Participation?",
-    "impact": "Begründung — welche messbaren Ergebnisse sind bekannt?",
-    "nachhaltigkeit": "Begründung — einmalige Aktion oder langfristige Plattform?"
-  },
-  "strategic_insight": "2-3 Absätze: Was lernen andere Sponsoren? Welche Mechaniken sind übertragbar?",
-  "sources": ["url1", "url2"]
-}
-
-NOCHMALS: Die 3er in ratings sind NUR Startwerte im Template. Du MUSST sie durch deine echte Bewertung ersetzen (1-5). Ein Wert von 3 bedeutet Branchendurchschnitt — vergib 1-2 wenn etwas schwach ist, 4-5 wenn etwas überdurchschnittlich ist.`;
-
-  const messages: Anthropic.MessageParam[] = [
-    { role: 'user', content: searchPrompt },
-  ];
+  const messages: Anthropic.MessageParam[] = [{ role: 'user', content: researchPrompt }];
 
   let response = await anthropic.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 6000,
-    system: 'Du antwortest IMMER als valides JSON ohne Markdown oder Codeblöcke.',
+    max_tokens: 4000,
     tools: [webSearchTool],
     messages,
   });
 
+  // Run web search loop
   let iterations = 0;
   while (response.stop_reason === 'tool_use' && iterations < 6) {
     iterations++;
     messages.push({ role: 'assistant', content: response.content });
     response = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 6000,
-      system: 'Du antwortest IMMER als valides JSON ohne Markdown oder Codeblöcke.',
+      max_tokens: 4000,
       tools: [webSearchTool],
       messages,
     });
   }
 
+  // Return the research summary
   const textBlock = response.content.find((b) => b.type === 'text');
-  if (!textBlock) throw new Error('Keine Antwort von Claude erhalten.');
+  return textBlock ? (textBlock as Anthropic.TextBlock).text : 'Keine Recherche-Ergebnisse.';
+}
 
-  return extractJson((textBlock as Anthropic.TextBlock).text);
+// Step 2b: Structured analysis via forced tool use — guaranteed valid output
+async function structuredAnalysis(
+  researchSummary: string,
+  caseIdentification: string,
+  description?: string
+): Promise<ClaudeAnalysisResult> {
+  const response = await anthropic.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 5000,
+    tools: [SAVE_ANALYSIS_TOOL],
+    tool_choice: { type: 'tool', name: 'save_case_analysis' },
+    messages: [{
+      role: 'user',
+      content: `Erstelle jetzt die vollständige S20 Benchmark-Analyse basierend auf dieser Recherche.
+
+RECHERCHE-ERGEBNISSE:
+${researchSummary}
+
+${caseIdentification ? `CASE-IDENTIFIKATION: ${caseIdentification}\n` : ''}
+${description ? `BESCHREIBUNG: ${description}\n` : ''}
+
+BEWERTUNGSSKALA (für alle 8 Kriterien):
+1 = Weit unter Branchendurchschnitt
+2 = Unter Durchschnitt
+3 = Branchendurchschnitt (vergib 3 nur wenn wirklich Durchschnitt)
+4 = Überdurchschnittlich
+5 = Branchenführend / Best-in-Class
+
+Die Noten MÜSSEN den tatsächlichen Qualitäten dieses Cases entsprechen und sollen voneinander abweichen. Rufe jetzt save_case_analysis auf.`,
+    }],
+  });
+
+  // Extract tool input — this is guaranteed to be valid
+  const toolUse = response.content.find((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use');
+  if (!toolUse) throw new Error('Claude hat das Analyse-Tool nicht aufgerufen.');
+
+  const i = toolUse.input as Record<string, unknown>;
+
+  return {
+    title: String(i.title || ''),
+    brand: String(i.brand || ''),
+    partner: String(i.partner || ''),
+    summary: String(i.summary || ''),
+    ratings: {
+      kreative_idee: Number(i.rating_kreative_idee) || 3,
+      strategischer_fit: Number(i.rating_strategischer_fit) || 3,
+      visibility: Number(i.rating_visibility) || 3,
+      multichannel: Number(i.rating_multichannel) || 3,
+      talk_of_town: Number(i.rating_talk_of_town) || 3,
+      aktivierungsmechanik: Number(i.rating_aktivierungsmechanik) || 3,
+      impact: Number(i.rating_impact) || 3,
+      nachhaltigkeit: Number(i.rating_nachhaltigkeit) || 3,
+    },
+    rating_reasons: {
+      kreative_idee: String(i.reason_kreative_idee || ''),
+      strategischer_fit: String(i.reason_strategischer_fit || ''),
+      visibility: String(i.reason_visibility || ''),
+      multichannel: String(i.reason_multichannel || ''),
+      talk_of_town: String(i.reason_talk_of_town || ''),
+      aktivierungsmechanik: String(i.reason_aktivierungsmechanik || ''),
+      impact: String(i.reason_impact || ''),
+      nachhaltigkeit: String(i.reason_nachhaltigkeit || ''),
+    },
+    strategic_insight: String(i.strategic_insight || ''),
+    sources: Array.isArray(i.sources) ? i.sources.map(String) : [],
+  };
 }
 
 export async function analyzeSponsoringCase(
@@ -198,14 +224,17 @@ export async function analyzeSponsoringCase(
   imageBase64?: string,
   imageMimeType?: string
 ): Promise<ClaudeAnalysisResult> {
-  // Step 1: If image provided, identify it first (fast, ~2s)
+  // Step 1: Identify image (fast, no search)
   let caseIdentification = '';
   if (imageBase64 && imageMimeType) {
     caseIdentification = await identifyFromImage(imageBase64, imageMimeType);
   }
 
-  // Step 2: Deep analysis with web search using the identified case
-  const result = await analyzeWithSearch(caseIdentification, description);
+  // Step 2a: Research with web search
+  const researchSummary = await researchCase(caseIdentification, description);
+
+  // Step 2b: Force-structured analysis (guaranteed valid)
+  const result = await structuredAnalysis(researchSummary, caseIdentification, description);
 
   // Clamp ratings 1–5
   const ratingKeys = [
@@ -213,7 +242,7 @@ export async function analyzeSponsoringCase(
     'talk_of_town', 'aktivierungsmechanik', 'impact', 'nachhaltigkeit',
   ] as const;
   for (const key of ratingKeys) {
-    result.ratings[key] = Math.min(5, Math.max(1, Math.round(result.ratings[key] || 3)));
+    result.ratings[key] = Math.min(5, Math.max(1, Math.round(result.ratings[key])));
   }
 
   return result;
