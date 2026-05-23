@@ -44,7 +44,7 @@ export default async function CasePage({ params }: PageProps) {
     `*${caseData.title}* — SponsorCaseRadar S20 Analyse\n\n` +
       `${scoreEmoji} ${caseData.score_label} · ${caseData.score_total}/40 Punkte\n\n` +
       `${caseData.summary ? caseData.summary.substring(0, 200) + '...' : ''}\n\n` +
-      `Vollständige Analyse: ${process.env.NEXT_PUBLIC_APP_URL || 'https://spotcase.io'}/case/${caseData.id}`
+      `Vollständige Analyse: https://sponsorcaseradar.vercel.app/case/${caseData.id}`
   );
 
   return (

@@ -37,7 +37,11 @@
       "Bash(git commit -m 'Fix: robust JSON extraction + valid template values *)",
       "Bash(git commit -m 'Fix: forced tool use for guaranteed valid JSON output *)",
       "Bash(vercel logs *)",
-      "Bash(git commit -m 'Fix: timeout handling + speed optimization *)"
+      "Bash(git commit -m 'Fix: timeout handling + speed optimization *)",
+      "Bash(vercel billing *)",
+      "Bash(vercel teams *)",
+      "Bash(vercel project *)",
+      "Bash(git commit -m 'Fix: WhatsApp share link uses correct production URL *)"
     ]
   }
 }
