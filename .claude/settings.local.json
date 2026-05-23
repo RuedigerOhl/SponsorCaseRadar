@@ -35,7 +35,9 @@
       "Bash(git commit -m 'Fix: image fitting + two-step AI recognition *)",
       "Bash(git commit -m 'Fix: case-specific ratings — remove template values, enforce individual scoring *)",
       "Bash(git commit -m 'Fix: robust JSON extraction + valid template values *)",
-      "Bash(git commit -m 'Fix: forced tool use for guaranteed valid JSON output *)"
+      "Bash(git commit -m 'Fix: forced tool use for guaranteed valid JSON output *)",
+      "Bash(vercel logs *)",
+      "Bash(git commit -m 'Fix: timeout handling + speed optimization *)"
     ]
   }
 }

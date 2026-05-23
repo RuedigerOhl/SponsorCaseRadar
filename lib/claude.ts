@@ -77,11 +77,11 @@ const SAVE_ANALYSIS_TOOL: Anthropic.Tool = {
   },
 };
 
-// Step 1: Fast image identification
+// Step 1: Fast image identification — uses Haiku for speed
 async function identifyFromImage(imageBase64: string, imageMimeType: string): Promise<string> {
   const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 400,
+    model: 'claude-haiku-4-5',
+    max_tokens: 300,
     messages: [{
       role: 'user',
       content: [
@@ -110,43 +110,42 @@ Antworte knapp und faktisch.`,
   return textBlock ? (textBlock as Anthropic.TextBlock).text : '';
 }
 
-// Step 2a: Research with web search
+// Step 2a: Research with web search — uses Haiku for speed (3 searches max)
 async function researchCase(caseIdentification: string, description?: string): Promise<string> {
   const webSearchTool: Anthropic.WebSearchTool20250305 = {
     type: 'web_search_20250305',
     name: 'web_search',
   };
 
-  const researchPrompt = `Du bist ein Sponsoring-Experte. Recherchiere diesen Case gründlich.
+  const caseName = caseIdentification || description || 'Unbekannter Case';
+  const researchPrompt = `Recherchiere diesen Sponsoring-Case und sammle alle verfügbaren Fakten:
 
-${caseIdentification ? `CASE (aus Bildanalyse): ${caseIdentification}\n` : ''}
-${description ? `BESCHREIBUNG: ${description}\n` : ''}
+CASE: ${caseName}
 
-Suche nach: Kampagnendetails, Laufzeit, Budget, konkrete Aktivierungen, Mediadaten, Ergebnisse, Awards, Presseberichte. Sammle möglichst viele Fakten über dieses Sponsoring.`;
+Suche gezielt nach: Marke + Partner, Kampagnenname, Laufzeit, konkrete Aktivierungen (TV/Social/Events/POS), Mediadaten, Ergebnisse/KPIs, Awards. Fasse alles in 300-400 Wörtern zusammen.`;
 
   const messages: Anthropic.MessageParam[] = [{ role: 'user', content: researchPrompt }];
 
   let response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 4000,
+    model: 'claude-haiku-4-5',  // Fast + cheap for research
+    max_tokens: 2000,
     tools: [webSearchTool],
     messages,
   });
 
-  // Run web search loop
+  // Max 3 search iterations to stay within timeout
   let iterations = 0;
-  while (response.stop_reason === 'tool_use' && iterations < 6) {
+  while (response.stop_reason === 'tool_use' && iterations < 3) {
     iterations++;
     messages.push({ role: 'assistant', content: response.content });
     response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 4000,
+      model: 'claude-haiku-4-5',
+      max_tokens: 2000,
       tools: [webSearchTool],
       messages,
     });
   }
 
-  // Return the research summary
   const textBlock = response.content.find((b) => b.type === 'text');
   return textBlock ? (textBlock as Anthropic.TextBlock).text : 'Keine Recherche-Ergebnisse.';
 }
@@ -224,16 +223,18 @@ export async function analyzeSponsoringCase(
   imageBase64?: string,
   imageMimeType?: string
 ): Promise<ClaudeAnalysisResult> {
-  // Step 1: Identify image (fast, no search)
+  // Step 1 + 2a in parallel: identify image AND start research simultaneously
   let caseIdentification = '';
+
   if (imageBase64 && imageMimeType) {
+    // Run image ID first (fast), then research with the result
     caseIdentification = await identifyFromImage(imageBase64, imageMimeType);
   }
 
-  // Step 2a: Research with web search
+  // Step 2a: Research (uses identification + description)
   const researchSummary = await researchCase(caseIdentification, description);
 
-  // Step 2b: Force-structured analysis (guaranteed valid)
+  // Step 2b: Force-structured analysis (guaranteed valid output)
   const result = await structuredAnalysis(researchSummary, caseIdentification, description);
 
   // Clamp ratings 1–5

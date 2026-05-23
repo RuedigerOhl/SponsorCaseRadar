@@ -84,7 +84,18 @@ export default function UploadForm() {
         body: formData,
       });
 
-      const data = await response.json();
+      // Safe JSON parse — Vercel timeout returns HTML which breaks response.json()
+      let data: { id?: string; error?: string } = {};
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        if (response.status === 504 || text.includes('FUNCTION_INVOCATION_TIMEOUT')) {
+          throw new Error('Die Analyse hat zu lange gedauert. Bitte versuche es mit einer kürzeren Beschreibung oder ohne Bild erneut.');
+        }
+        throw new Error('Unerwartete Serverantwort. Bitte erneut versuchen.');
+      }
 
       if (!response.ok) {
         throw new Error(data.error || 'Analyse fehlgeschlagen.');
